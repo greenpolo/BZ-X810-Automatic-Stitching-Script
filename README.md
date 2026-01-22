@@ -1,6 +1,8 @@
 # AutoStitch-Keyence (Batch RGB Edition)
 Automated batch stitching for Keyence BZ-X800 microscope images.
 
+Adapted from: https://github.com/majanne/AutoStitch-Keyence?
+
 ## Features
 * **Keyence Composite Batch Mode**: Stitches multiple image folders in one continuous run without restarting the Analyzer software.
 * **Streamlined Workflow**: 
