@@ -1,4 +1,4 @@
-# AutoStitch-Keyence (Batch RGB Edition)
+# BZ-X810 Auto-Stitching Script
 Automated batch stitching for Keyence BZ-X800 microscope images.
 
 Adapted from: https://github.com/majanne/AutoStitch-Keyence?
@@ -44,16 +44,6 @@ Adapted from: https://github.com/majanne/AutoStitch-Keyence?
    * Search for all subfolders containing `.gci` files.
    * Process them sequentially, exporting the stitched overlay to an `output` folder.
 
+## License
 
-
-
-
-
-
-
-
-
-
-
-
-
+MIT
