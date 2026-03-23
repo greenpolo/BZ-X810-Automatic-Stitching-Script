@@ -39,7 +39,18 @@ IfMsgBox No
 ;;; Run where you launched
 inputDir := A_WorkingDir
 outputDir := A_WorkingDir "\output"
+
+;;; Pre-stitch: collect folders and show naming GUI
+previewFolderList := []
+tmpDir := outputDir "\tmpdir"
+collectFoldersWithGci(inputDir, "", outputDir, tmpDir, options, previewFolderList)
+showNamingGui(previewFolderList)
+
+;;; Stitch
 stitchFolders(inputDir, outputDir, options)
+
+;;; Post-stitch: rename output files to custom names
+renameOutputFiles(previewFolderList, outputDir)
 
 
 ;;; Pressing ESC ends the script anytime

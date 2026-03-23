@@ -33,6 +33,7 @@ STITCH_BASE_DIR := "C:\Users\KeyencePC\Downloads\AutoStitch-Keyence-1.0.1"
 #include include\saveTiffSmall.ahk 
 #include include\doNotSaveTiffSmall.ahk
 #include include\saveJpg.ahk
+#include include\namingGui.ahk
 
 ;#include %A_ScriptDir%\include\runMockStitching.ahk
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
