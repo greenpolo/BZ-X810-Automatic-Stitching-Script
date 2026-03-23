@@ -32,9 +32,36 @@ exportTiff(outputDirName, currentName, channel)
 	saveWinId := WinExist("A")
 
 	;Sequence to send filename
-	ControlFocus, Edit1, ahk_id %saveWinId%,
-	Sleep 500
-	ControlSetText, Edit1, %outputFile%, ahk_id %saveWinId%, 
+    ; 1. Navigate to folder
+    Send, {F4}
+    Sleep, 200
+    Send, ^a
+    Sleep, 200
+    SendRaw, %outputDirName%
+    Sleep, 200
+    Send, {Enter}
+    Sleep, 1000  ; Increased wait for folder to load
+    
+    ; 2. Enter filename
+    ; 2. Enter filename
+    ; Force focus on the filename box (Edit1) using Control commands
+	ControlFocus, Edit1, ahk_id %saveWinId%
+	Sleep, 300
+	ControlClick, Edit1, ahk_id %saveWinId%, , LEFT, 1
+    Sleep, 300
+    
+    ; Select all existing text so paste replaces it
+    Send, ^a
+    Sleep, 200
+    
+    ; Use Clipboard paste which is instant and reliable
+    oldClipboard := ClipboardAll
+    Clipboard := currentName "_" channel
+    ClipWait, 1
+    Send, ^v
+    Sleep, 300
+    Clipboard := oldClipboard
+    Sleep, 300 
 
 	; Clicking Save
 	ControlFocus, Button2, ahk_id %saveWinId%,
