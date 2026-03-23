@@ -1,0 +1,39 @@
+OpenJDK 64-Bit Server VM warning: ignoring option PermSize=128m; support was removed in 8.0
+OpenJDK 64-Bit Server VM warning: Using incremental CMS is deprecated and will likely be removed in a future release
+#------------------------------------------------
+# Merging channels into multi-channel hyperstacks
+# Parameters:
+#    image width (um) = 8474.32
+#    file pattern = .tif
+#    input dir  = C:\Users\KeyencePC\Desktop\CC\NPP-Paper\SS-Di\SS-Di_F2\output\tmpdir
+#    output dir = C:\Users\KeyencePC\Desktop\CC\NPP-Paper\SS-Di\SS-Di_F2\output\tmpdir
+#    metadata file = C:\Users\KeyencePC\Desktop\CC\NPP-Paper\SS-Di\SS-Di_F2\output\tmpdir\imageInfo.txt
+#------------------------------------------------
+# Metadata:
+------- Auto Stitch Information -------
+Acquisition date : 11/18/2025 9:50:27 AM
+Channel and exposure time : CH1 = 1/60s, CH2 = 1/150s, CH3 = 1/8.5s
+Objective lens : PlanApo 10x 0.45/4.00mm :Default
+#------------------------------------------------
+# Found 1 image group(s)
+
+Processing group: XY01 (3 channels)
+    Opening dapi: XY01_dapi.tif
+    Extracting dapi plane...
+    [dapi] Extracting signal via RGB MAX projection...
+    Opening gfp: XY01_gfp.tif
+    Extracting gfp plane...
+    [gfp] Extracting signal via RGB MAX projection...
+    Opening rfp: XY01_rfp.tif
+    Extracting rfp plane...
+    [rfp] Extracting signal via RGB MAX projection...
+    Building 3-channel hyperstack...
+    Hyperstack created: 3742 x 2808, 3 channels
+    Saving TIFF: C:\Users\KeyencePC\Desktop\CC\NPP-Paper\SS-Di\SS-Di_F2\output\tmpdir\XY01.tif
+    Saved successfully (3 pages).
+    Done: XY01
+
+#------------------------------------------------
+# Completed processing: 0.332s
+# Waiting for ImageJ to close ...
+#------------------------------------------------
