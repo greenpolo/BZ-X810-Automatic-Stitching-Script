@@ -204,7 +204,22 @@ runStitchingBatch(folderList, outputDirPath, options) {
 		}
 	}
 	
-	; All folders done. Analyzer and Load a Group window remain open for further use.
+	; All folders done, keep windows open
+	; WinClose, Load a Group.
+	; WinWaitClose, Load a Group., , 30
+	
+	; Close the Analyzer
+	; WinWaitActive, ahk_id %analyzerWinId%, , 5
+	; WinActivate, ahk_id %analyzerWinId%
+	; Sleep 500
+	; WinClose, ahk_id %analyzerWinId%
+	; WinWaitClose, ahk_id %analyzerWinId%,, 30
+	; if (ErrorLevel) {
+	; 	WinActivate, ahk_id %analyzerWinId%
+	; 	Sleep 500
+	; 	WinClose, ahk_id %analyzerWinId%
+	; 	WinWaitClose, ahk_id %analyzerWinId%,, 30
+	; }
 	
 	return true
 }
