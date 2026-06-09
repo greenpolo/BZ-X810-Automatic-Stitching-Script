@@ -56,43 +56,51 @@ def extractChannel(img, channelName):
 
 
 def buildHyperstack(channelImages, channelOrder):
-    """ Build a multi-channel hyperstack and apply LUTs. """
-    
+    """ Build a multi-channel CompositeImage hyperstack with per-channel LUTs. """
+
     # Get dimensions
     firstCh = channelImages[channelOrder[0]]
     width = firstCh.getWidth()
     height = firstCh.getHeight()
     nChannels = len(channelOrder)
-    
+
     # Sort channels
     sortedChannels = sorted(channelOrder, key=lambda ch: CHANNEL_CONFIG[ch]["order"])
-    
+
     # Create Stack
     stack = ImageStack(width, height)
     for chName in sortedChannels:
         chImg = channelImages[chName]
         stack.addSlice(CHANNEL_CONFIG[chName]["name"], chImg.getProcessor())
-    
+
     # Create ImagePlus from the stack
     merged = ImagePlus("merged", stack)
-    
-    # Set as hyperstack: nChannels channels, 1 Z-slice, 1 timeframe
     merged.setDimensions(nChannels, 1, 1)
-    
-    # The user specifically requested avoidance of "CompositeImage" (which overlays in ImageJ).
-    # Return the raw ImagePlus stack. This renders as separate grayscale channels you scroll through.
-    
-    print "    Hyperstack created: %d x %d, %d channels" % (width, height, nChannels)
-    return merged
+
+    # Wrap as CompositeImage so each channel gets its own LUT
+    # COLOR mode shows one channel at a time; user can switch to COMPOSITE in Fiji
+    composite = CompositeImage(merged, CompositeImage.COLOR)
+
+    # Apply per-channel LUTs
+    for i, chName in enumerate(sortedChannels):
+        color = CHANNEL_CONFIG[chName]["color"]
+        lut = LUT.createLutFromColor(color)
+        composite.setC(i + 1)  # 1-based channel index
+        composite.setChannelLut(lut)
+
+    composite.setC(1)  # Reset to first channel
+
+    print "    CompositeImage created: %d x %d, %d channels" % (width, height, nChannels)
+    return composite
 
 # ---- Channel configuration ----
-# "plane" = Which RGB plane to extract (0=Red, 1=Green, 2=Blue)
 # "order" = Sort order for consistent channel stacking (DAPI first, then GFP, then RFP)
+# "color" = java.awt.Color for the channel LUT
 CHANNEL_CONFIG = {
-    "dapi": {"plane": 2, "order": 0, "name": "DAPI"},
-    "gfp":  {"plane": 1, "order": 1, "name": "GFP"},
-    "rfp":  {"plane": 0, "order": 2, "name": "RFP"},
-    "bf":   {"plane": -1, "order": 3, "name": "Brightfield"},
+    "dapi": {"order": 0, "name": "DAPI",        "color": Color.BLUE},
+    "gfp":  {"order": 1, "name": "GFP",         "color": Color.GREEN},
+    "rfp":  {"order": 2, "name": "RFP",         "color": Color.RED},
+    "bf":   {"order": 3, "name": "Brightfield",  "color": Color.WHITE},
 }
 
 # ---- Auxiliary functions ----

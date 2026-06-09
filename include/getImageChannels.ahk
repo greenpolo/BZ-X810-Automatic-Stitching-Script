@@ -83,10 +83,10 @@ getImageChannels(ByRef imageInfo) {
 			MsgBox, , Error, The program does not know what this channel is: "%v%"
 		}
 	}
-	; Add overlay if list is larger than one
-	; if (channels.MaxIndex() > 1) {
-	; 	channels.push("ovly")
-	; }
+	; Add overlay if more than one channel (so it gets exported alongside individual channels)
+	if (channels.MaxIndex() > 1) {
+		channels.push("ovly")
+	}
 	; Reverse the list, storing it in allChannels
 	allChannels := []
 	sz := channels.MaxIndex()

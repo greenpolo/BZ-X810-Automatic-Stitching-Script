@@ -253,8 +253,11 @@ renameOutputFiles(ByRef folderList, outputDir) {
 				nextChar := SubStr(fileName, StrLen(oldPrefix) + 1, 1)
 				if (nextChar = "_" or nextChar = "." or nextChar = "") {
 					newFileName := newPrefix . SubStr(fileName, StrLen(oldPrefix) + 1)
-					; Strip _ovly suffix (e.g. "name_ovly.tif" -> "name.tif")
-					newFileName := RegExReplace(newFileName, "_ovly(\.[^.]+)$", "$1")
+					; Strip _ovly suffix only if it won't collide with an existing file
+					strippedName := RegExReplace(newFileName, "_ovly(\.[^.]+)$", "$1")
+					if (strippedName != newFileName and FileExist(outputDir "\" strippedName) = "") {
+						newFileName := strippedName
+					}
 					newFilePath := outputDir "\" newFileName
 					FileMove, %filePath%, %newFilePath%
 				}
