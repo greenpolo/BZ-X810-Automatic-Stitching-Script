@@ -10,13 +10,17 @@ AutoStitch-Keyence automates image stitching for Keyence BZ-X800 microscopes usi
 
 Double-click `run-instructions/runStitch.ahk`. A **Setup GUI** (`include/setupGui.ahk`) opens first, where the user picks the input folder, the output folder (anywhere — no longer forced to `<input>/output`), and the stitching options. Last-used values persist to `settings.ini` in the install directory. The script processes all subfolders of the input (up to 4 levels deep) that contain `.gci` files. After Setup, a **Naming GUI** (`include/namingGui.ahk`) lets the user assign output names (typed, auto-incremented via "Fill below", or pasted as a column from a tracking spreadsheet); names are applied to the detected folders by position and the output files are renamed after stitching.
 
-## Two Stitching Modes
+## Output Modes
 
-The Setup GUI's method radio (persisted to `settings.ini`) lets the user choose:
+The Setup GUI's "Output channels" radio (persisted to `settings.ini` as `exportMode`) lets the user choose:
 
-1. **Keyence Composite (RGB)** — `saveIndividualChannels = false`. Uses `runStitchingBatch()` in `include/runStitchingBatch.ahk`. Opens Keyence once, unchecks CH1/CH2/CH3 (overlay only), processes all folders in sequence without restarting the Analyzer. Skips ImageJ entirely. The Analyzer is left open when done.
+1. **All channels + overlay** (`exportMode = "channels"`, default) — exports each individual channel and the overlay as separate TIFFs, matching the manual Keyence workflow. Uses `runStitching()` in `include/runStitching.ahk` called recursively from `ahkStitch.ahk:stitchFoldersRecursive()`. With `imageJMerge = false` (default) it exports straight to the output dir with **no** post-processing; with `imageJMerge = true` it exports to a temp dir then runs `imagej/postprocess.py` (Jython) headless in Fiji to build a multi-channel composite. Restarts Keyence per folder.
 
-2. **ImageJ Merge** — `saveIndividualChannels = true`. Uses `runStitching()` in `include/runStitching.ahk` called recursively from `ahkStitch.ahk:stitchFoldersRecursive()`. Exports all individual channels, then runs `imagej/postprocess.py` (Jython) headless in Fiji to extract color planes, build multi-channel hyperstacks, set spatial calibration, and save as multi-page TIFF. Restarts Keyence per folder.
+2. **Overlay only** (`exportMode = "overlay"`) — uses `runStitchingBatch()` in `include/runStitchingBatch.ahk`. Opens Keyence once, unchecks CH1/CH2/CH3 (overlay only), processes all folders without restarting the Analyzer, leaving it open when done. Fast.
+
+Channel filenames use configurable labels (Setup GUI → `options["channelNames"]`, `channelLabel()` in `utils.ahk`): internal channel keys `dapi`/`gfp`/`rfp`/`bf`/`ovly` map to user-set labels (e.g. `gfp`→`cfos`, `rfp`→`EGR`, `ovly`→`Overlay`) so output files are named `<name>_<label>.tif`.
+
+The Setup GUI runs before stitching; a separate **Naming GUI** then assigns per-folder output names, and folders whose output already exists are skipped (resume support, `outputAlreadyStitched()`).
 
 ## Architecture
 
@@ -62,7 +66,7 @@ All three paths must be updated together when moving the installation.
 
 - GUI automation uses hardcoded pixel coordinates for checkbox toggling (CH1: 590,91; CH2: 904,91; CH3: 590,511 in Client coords). These break if the "Load a Group" window layout changes.
 - `isPixelBlue()` in `runStitchingBatch.ahk` determines checked/unchecked state by testing if Blue > 128 and Red < 128 (checked = blue ~0x196EBF, unchecked = gray ~0xEAEAEA).
-- Channel names are hardcoded: CH1=dapi, CH2=gfp, CH3=rfp, CH4=bf. These map to the microscope's Multi-Color acquisition order.
+- Channel detection is by acquisition order: CH1=dapi, CH2=gfp, CH3=rfp, CH4=bf (internal keys, in `getImageChannels.ahk`). The user-facing **filename labels** for these are configurable in the Setup GUI (`options["channelNames"]` / `channelLabel()`), defaulting to DAPI/GFP/RFP/BF/Overlay.
 - Window class names like `WindowsForms10.BUTTON.app.0.1ca0192_r6_ad118` are specific to the Keyence software version. A Keyence update may change them.
 - The `#include` directive in AHK v1 does not support variables — paths must be hardcoded strings.
 - Multi-Point acquisition (up to 3 slides) uses `#`-delimited naming in the folder name to assign per-slide output names (see `formatFileName()` in `utils.ahk`).

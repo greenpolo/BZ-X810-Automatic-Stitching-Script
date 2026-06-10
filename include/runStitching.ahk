@@ -223,6 +223,7 @@ runStitching(inputDirPath, currentName, outputDirPath, options, imageInfo) {
 	userFormats := StrSplit(options["formats"], ",", " ")
 
 	for i, channel in allChannels {
+		chLabel := channelLabel(channel, options)
 		; Save BifTiff ?
 		sleep 2000
 		
@@ -260,17 +261,17 @@ runStitching(inputDirPath, currentName, outputDirPath, options, imageInfo) {
 		}
 		; MsgBox Processing channel %channel%, window %currentWin%
 		if (isInList("BigTIFF", userFormats)) {
-			exportBigTiff(outputDirPath, currentName, channel)
+			exportBigTiff(outputDirPath, currentName, chLabel)
 		}
 		WinWaitActive, ahk_id %currentWin% , , 20
 		; Save Tiff ?
 		if (isInList("TIFF", userFormats)) {
-			exportTiff(outputDirPath, currentName, channel)
+			exportTiff(outputDirPath, currentName, chLabel)
 		}
 		WinWaitActive, ahk_id %currentWin% , , 20
 		; Save KTF ?
 		if (isInList("Ktf", userFormats)) {
-			saveKtf(outputDirPath, currentName, channel)
+			saveKtf(outputDirPath, currentName, chLabel)
 		} else {
 			doNotSaveKtf()
 		}
@@ -296,6 +297,7 @@ runStitching(inputDirPath, currentName, outputDirPath, options, imageInfo) {
 	hasSizeInfo := False
 	scaleBar := options["insertScale"]
 	for i, channel in allChannels {
+		chLabel := channelLabel(channel, options)
 		; For the first image, get the size
 		if (hasSizeInfo = False) {
 			imageWH := getImageSize()
@@ -324,7 +326,7 @@ runStitching(inputDirPath, currentName, outputDirPath, options, imageInfo) {
 		
 		; Save
 		if (isInList("JPEG", userFormats)) {
-			saveJpg(outputDirPath, currentName, channel)
+			saveJpg(outputDirPath, currentName, chLabel)
 		}
 		; We never want to save the small tiff here (it's just a screenshot)
 		; if (hasSizeInfo and options["saveSmallTiff"]) {

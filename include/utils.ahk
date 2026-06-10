@@ -82,6 +82,31 @@ sendClipboard(text) {
 	Clipboard := 
 }
 
+;; Map an internal channel key (dapi/gfp/rfp/bf/ovly) to the user-facing label
+;; used in output filenames. Configurable via options["channelNames"] (set in
+;; the Setup GUI); falls back to sensible defaults. Lets the script reproduce
+;; experiment-specific names (e.g. gfp -> "cfos", rfp -> "EGR").
+channelLabel(internalKey, options) {
+	names := options["channelNames"]
+	if (IsObject(names) and names.HasKey(internalKey)) {
+		v := Trim(names[internalKey])
+		if (v != "") {
+			return v
+		}
+	}
+	if (internalKey = "dapi")
+		return "DAPI"
+	if (internalKey = "gfp")
+		return "GFP"
+	if (internalKey = "rfp")
+		return "RFP"
+	if (internalKey = "bf")
+		return "BF"
+	if (internalKey = "ovly")
+		return "Overlay"
+	return internalKey
+}
+
 ;; Resume support: resolve the final output name for a stitched folder.
 ;; Uses the user's custom name from the naming GUI when one was assigned
 ;; (looked up by folder path), otherwise the auto-generated name.

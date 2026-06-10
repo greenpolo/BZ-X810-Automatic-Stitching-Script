@@ -60,7 +60,20 @@ getDefaultOptions() {
 	options["scaleLength"] := 1000
 	options["shortName"]   := true
 	options["compress"]    := false
-	options["saveIndividualChannels"] := false
+	; Export mode: "channels" = all individual channels + overlay as separate
+	; files (matches the manual workflow); "overlay" = single composite per image.
+	options["exportMode"] := "channels"
+	options["saveIndividualChannels"] := true
+	; ImageJ/Fiji merge into a composite — off by default (separate files instead)
+	options["imageJMerge"] := false
+	; Per-channel filename labels (internal channel key -> label in the filename)
+	channelNames := {}
+	channelNames["dapi"] := "DAPI"
+	channelNames["gfp"]  := "GFP"
+	channelNames["rfp"]  := "RFP"
+	channelNames["bf"]   := "BF"
+	channelNames["ovly"] := "Overlay"
+	options["channelNames"] := channelNames
 	
 	; Binaries
 	options["scriptDir"] := STITCH_BASE_DIR
@@ -91,18 +104,21 @@ stitchFolders(inputDir, outputDir, options) {
 	FileRemoveDir %tmpDir%, 1
 	FileCreateDir %tmpDir%
 	
-	;@ Check if using Keyence RGB mode (batch processing)
-	if (options["saveIndividualChannels"] = false) {
+	;@ Overlay-only mode uses the fast batch path (Keyence opened once).
+	;@ Channels mode exports each channel separately via the recursive path.
+	if (options["exportMode"] = "overlay") {
+		options["saveIndividualChannels"] := false
 		; Collect all folders with GCI files first
 		folderList := []
 		collectFoldersWithGci(inputDir, "", outputDir, tmpDir, options, folderList)
-		
+
 		; Process all folders in one batch
 		if (folderList.MaxIndex() > 0) {
 			runStitchingBatch(folderList, outputDir, options)
 		}
 	} else {
-		;@ Original recursive approach for ImageJ mode
+		;@ Recursive approach: export all channels (+ overlay), optional ImageJ merge
+		options["saveIndividualChannels"] := true
 		level := 1   ; top-level
 		prefix := "" ; no prefix for top-level
 		stitchFoldersRecursive(inputDir, prefix, level, outputDir, tmpDir, options)
@@ -141,18 +157,19 @@ stitchFoldersRecursive(inputDir, prefix, level, outputDir, tmpDir, options) {
 		; (manual or prior run). Checks the real output dir, not the tmp dir.
 		if (outputAlreadyStitched(outputDir, resolveOutputName(currentWorkDir, outputFileName))) {
 			hasGci := false
-		} else {
-			; Call the stiching function
+		} else if (options["imageJMerge"] = true) {
+			; Export channels to a temp dir, then merge into a composite in Fiji
 			imageData := {}
 			FileCreateDir %tmpDir%
 			hasGci := runStitching(currentWorkDir, outputFileName, tmpDir, options, imageData)
 			if (hasGci) {
-				; Succesfull stitching, run postprocessing (only if using ImageJ merge mode)
-				if (options["saveIndividualChannels"] = true) {
-					runPost(tmpDir, outputDir, options, imageData)
-				}
+				runPost(tmpDir, outputDir, options, imageData)
 			}
 			FileRemoveDir %tmpDir%, 1
+		} else {
+			; Export each channel (+ overlay) straight to the output dir, no merge
+			imageData := {}
+			hasGci := runStitching(currentWorkDir, outputFileName, outputDir, options, imageData)
 		}
 		
 		; Set the root to process the next level of directories

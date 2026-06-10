@@ -19,7 +19,13 @@ showSetupGui(ByRef options, ByRef inputDir, ByRef outputDir) {
 	; ---- Load last-used settings (defaults provided so missing keys are safe) ----
 	IniRead, iniInput,    %SetupIniFile%, paths,   input,       %A_Space%
 	IniRead, iniOutput,   %SetupIniFile%, paths,   output,      %A_Space%
-	IniRead, iniMethod,   %SetupIniFile%, options, method,      keyence
+	IniRead, iniExportMode, %SetupIniFile%, options, exportMode,  channels
+	IniRead, iniMerge,      %SetupIniFile%, options, imageJMerge, 0
+	IniRead, iniCh1,  %SetupIniFile%, channels, ch1,     DAPI
+	IniRead, iniCh2,  %SetupIniFile%, channels, ch2,     GFP
+	IniRead, iniCh3,  %SetupIniFile%, channels, ch3,     RFP
+	IniRead, iniCh4,  %SetupIniFile%, channels, ch4,     BF
+	IniRead, iniOvly, %SetupIniFile%, channels, overlay, Overlay
 	IniRead, iniCompress, %SetupIniFile%, options, compress,    0
 	IniRead, iniScale,    %SetupIniFile%, options, insertScale, 0
 	IniRead, iniScaleLen, %SetupIniFile%, options, scaleLength, 1000
@@ -51,12 +57,26 @@ showSetupGui(ByRef options, ByRef inputDir, ByRef outputDir) {
 	Gui, Setup:Add, Button, x+6 yp-1 w70 gSetupBrowseOutput, Browse
 	Gui, Setup:Add, Button, xm+100 y+4 w120 gSetupAutoOutput, Auto (input\output)
 
-	; Method
-	Gui, Setup:Add, Text, xm y+16, Stitching method:
-	methKey := (iniMethod = "imagej") ? "" : "Checked"
-	methIJ  := (iniMethod = "imagej") ? "Checked" : ""
-	Gui, Setup:Add, Radio, xm y+4 vSetupMethodKeyence %methKey%, Keyence Composite (RGB in Keyence, skip ImageJ)
-	Gui, Setup:Add, Radio, xm y+2 vSetupMethodImageJ %methIJ%, ImageJ Merge (export all channels, merge in Fiji)
+	; Output channels + per-channel filename labels
+	Gui, Setup:Add, Text, xm y+16, Output channels:
+	modeAll := (iniExportMode = "overlay") ? "" : "Checked"
+	modeOvl := (iniExportMode = "overlay") ? "Checked" : ""
+	Gui, Setup:Add, Radio, xm y+4 vSetupExportAll %modeAll%, All channels + overlay (separate file per channel)
+	Gui, Setup:Add, Radio, xm y+2 vSetupExportOverlay %modeOvl%, Overlay only (single composite file per image)
+
+	Gui, Setup:Add, Text, xm y+8, Channel filename labels (used when exporting all channels):
+	Gui, Setup:Add, Text, xm y+4 w34, CH1:
+	Gui, Setup:Add, Edit, x+2 yp-3 w80 vSetupCh1, %iniCh1%
+	Gui, Setup:Add, Text, x+10 yp+3 w34, CH2:
+	Gui, Setup:Add, Edit, x+2 yp-3 w80 vSetupCh2, %iniCh2%
+	Gui, Setup:Add, Text, x+10 yp+3 w34, CH3:
+	Gui, Setup:Add, Edit, x+2 yp-3 w80 vSetupCh3, %iniCh3%
+	Gui, Setup:Add, Text, xm y+8 w34, CH4:
+	Gui, Setup:Add, Edit, x+2 yp-3 w80 vSetupCh4, %iniCh4%
+	Gui, Setup:Add, Text, x+10 yp+3 w52, Overlay:
+	Gui, Setup:Add, Edit, x+2 yp-3 w80 vSetupOvly, %iniOvly%
+	cbMerge := (iniMerge = 1 or iniMerge = "true") ? "Checked" : ""
+	Gui, Setup:Add, Checkbox, xm y+10 vSetupMergeCB %cbMerge%, Also merge channels into a composite in ImageJ/Fiji
 
 	; Options
 	cbCompress := (iniCompress = 1 or iniCompress = "true") ? "Checked" : ""
@@ -99,8 +119,17 @@ showSetupGui(ByRef options, ByRef inputDir, ByRef outputDir) {
 		outputDir := inputDir "\output"
 	}
 
-	method := SetupMethodImageJ ? "imagej" : "keyence"
-	options["saveIndividualChannels"] := (method = "imagej") ? true : false
+	exportMode := SetupExportOverlay ? "overlay" : "channels"
+	options["exportMode"] := exportMode
+	options["saveIndividualChannels"] := (exportMode = "channels") ? true : false
+	options["imageJMerge"] := (exportMode = "channels" and SetupMergeCB) ? true : false
+	chNames := {}
+	chNames["dapi"] := Trim(SetupCh1)
+	chNames["gfp"]  := Trim(SetupCh2)
+	chNames["rfp"]  := Trim(SetupCh3)
+	chNames["bf"]   := Trim(SetupCh4)
+	chNames["ovly"] := Trim(SetupOvly)
+	options["channelNames"] := chNames
 	options["compress"]     := SetupCompressCB ? true : false
 	options["insertScale"]  := SetupScaleCB ? true : false
 	sl := Trim(SetupScaleLenEdit)
@@ -112,7 +141,13 @@ showSetupGui(ByRef options, ByRef inputDir, ByRef outputDir) {
 	; ---- Persist for next run ----
 	IniWrite, %inputDir%,  %SetupIniFile%, paths,   input
 	IniWrite, %outputDir%, %SetupIniFile%, paths,   output
-	IniWrite, %method%,    %SetupIniFile%, options, method
+	IniWrite, %exportMode%, %SetupIniFile%, options, exportMode
+	IniWrite, % (options["imageJMerge"] ? 1 : 0), %SetupIniFile%, options, imageJMerge
+	IniWrite, % chNames["dapi"], %SetupIniFile%, channels, ch1
+	IniWrite, % chNames["gfp"],  %SetupIniFile%, channels, ch2
+	IniWrite, % chNames["rfp"],  %SetupIniFile%, channels, ch3
+	IniWrite, % chNames["bf"],   %SetupIniFile%, channels, ch4
+	IniWrite, % chNames["ovly"], %SetupIniFile%, channels, overlay
 	IniWrite, % (options["compress"] ? 1 : 0),    %SetupIniFile%, options, compress
 	IniWrite, % (options["insertScale"] ? 1 : 0), %SetupIniFile%, options, insertScale
 	IniWrite, % options["scaleLength"],           %SetupIniFile%, options, scaleLength
