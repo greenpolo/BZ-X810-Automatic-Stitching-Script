@@ -82,23 +82,34 @@ sendClipboard(text) {
 	Clipboard := 
 }
 
-;; Click the "Auto" Level Correction button in the BZ-X800 Wide Image Viewer
-;; before exporting, so each exported channel gets auto-leveled. Identified
-;; via Window Spy: button text "Auto", ClassNN
-;;   WindowsForms10.BUTTON.app.0.34f5582_r6_ad15
-;; inside the viewer window class WindowsForms10.Window.8.app.0.34f5582_r6_ad1.
-;; Falls back to clicking the control by its "Auto" text if the ClassNN moves.
+;; Apply Auto Level Correction in the BZ-X800 Wide Image Viewer before exporting,
+;; so each exported channel gets auto-leveled. The manual workflow is Auto then
+;; Apply (Auto computes the correction; Apply commits it so the export reflects
+;; it). Controls identified via Window Spy, inside viewer window class
+;; WindowsForms10.Window.8.app.0.34f5582_r6_ad1:
+;;   "Auto"  -> WindowsForms10.BUTTON.app.0.34f5582_r6_ad15
+;;   "Apply" -> WindowsForms10.BUTTON.app.0.34f5582_r6_ad13
+;; Each click falls back to targeting the button by its caption if the ClassNN moves.
 autoLevelCorrection(winId) {
-	autoBtn := "WindowsForms10.BUTTON.app.0.34f5582_r6_ad15"
+	autoBtn  := "WindowsForms10.BUTTON.app.0.34f5582_r6_ad15"
+	applyBtn := "WindowsForms10.BUTTON.app.0.34f5582_r6_ad13"
 	WinActivate, ahk_id %winId%
 	WinWaitActive, ahk_id %winId%, , 5
 	Sleep 200
+
+	; Auto: compute the level correction
 	ControlClick, %autoBtn%, ahk_id %winId%, , LEFT, , NA
 	if (ErrorLevel) {
-		; Fallback: target the button by its caption text
 		ControlClick, Auto, ahk_id %winId%, , LEFT, , NA
 	}
-	Sleep 1000  ; let the level correction recompute before export
+	Sleep 800  ; let the histogram recompute
+
+	; Apply: commit it so the export reflects the correction
+	ControlClick, %applyBtn%, ahk_id %winId%, , LEFT, , NA
+	if (ErrorLevel) {
+		ControlClick, Apply, ahk_id %winId%, , LEFT, , NA
+	}
+	Sleep 1000  ; let the correction apply before export
 }
 
 ;; Map an internal channel key (dapi/gfp/rfp/bf/ovly) to the user-facing label
