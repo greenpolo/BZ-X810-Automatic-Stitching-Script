@@ -152,18 +152,22 @@ stitchFoldersRecursive(inputDir, prefix, level, outputDir, tmpDir, options) {
 			continue
 		}
 		
-		; Compose the output file name
+		; Compose the auto name, then resolve to the user's custom name (from the
+		; Naming GUI). Stitching writes files under their FINAL name directly, so
+		; output is correct even if the run is cancelled partway (no end-of-run
+		; rename to depend on) and resume detection lines up.
 		outputFileName := formatFileName(prefix, currentName, "__", options["shortName"])
+		exportName := resolveOutputName(currentWorkDir, outputFileName)
 
 		; Resume support: skip this folder if its output already exists
 		; (manual or prior run). Checks the real output dir, not the tmp dir.
-		if (outputAlreadyStitched(outputDir, resolveOutputName(currentWorkDir, outputFileName))) {
+		if (outputAlreadyStitched(outputDir, exportName)) {
 			hasGci := false
 		} else if (options["imageJMerge"] = true) {
 			; Export channels to a temp dir, then merge into a composite in Fiji
 			imageData := {}
 			FileCreateDir %tmpDir%
-			hasGci := runStitching(currentWorkDir, outputFileName, tmpDir, options, imageData)
+			hasGci := runStitching(currentWorkDir, exportName, tmpDir, options, imageData)
 			if (hasGci) {
 				runPost(tmpDir, outputDir, options, imageData)
 			}
@@ -171,7 +175,7 @@ stitchFoldersRecursive(inputDir, prefix, level, outputDir, tmpDir, options) {
 		} else {
 			; Export each channel (+ overlay) straight to the output dir, no merge
 			imageData := {}
-			hasGci := runStitching(currentWorkDir, outputFileName, outputDir, options, imageData)
+			hasGci := runStitching(currentWorkDir, exportName, outputDir, options, imageData)
 		}
 		
 		; Set the root to process the next level of directories

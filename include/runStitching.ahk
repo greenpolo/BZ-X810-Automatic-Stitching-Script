@@ -300,10 +300,13 @@ runStitching(inputDirPath, currentName, outputDirPath, options, imageInfo) {
 	
 	hasSizeInfo := False
 	scaleBar := options["insertScale"]
+	; Image size / calibration is only needed for a scale bar or the ImageJ merge.
+	; Skip it otherwise so plain channel export doesn't do pointless Analyzer work.
+	needMeta := (scaleBar = "yes" or scaleBar = true or options["imageJMerge"] = true)
 	for i, channel in allChannels {
 		chLabel := channelLabel(channel, options)
-		; For the first image, get the size
-		if (hasSizeInfo = False) {
+		; For the first image, get the size (only when something needs it)
+		if (needMeta and hasSizeInfo = False) {
 			imageWH := getImageSize()
 			imageW := imageWH[1]
 			imageH := imageWH[2]
