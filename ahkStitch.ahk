@@ -3,10 +3,10 @@
 ;SendMode Input  ; Recommended for new scripts due to its superior speed and reliability.
 ;SetWorkingDir %A_ScriptDir%  ; Ensures a consistent starting directory.
 global STITCH_BASE_DIR
-STITCH_BASE_DIR := "C:\Users\KeyencePC\Downloads\AutoStitch-Keyence-1.0.1"
+STITCH_BASE_DIR := "C:\Users\KeyencePC\Projects\BZ-X810-Automatic-Stitching-Script"
 
 ; Includes cannot contain variables. Using the hardcoded install path here.
-#include C:\Users\KeyencePC\Downloads\AutoStitch-Keyence-1.0.1
+#include C:\Users\KeyencePC\Projects\BZ-X810-Automatic-Stitching-Script
 #include include\utils.ahk
 #include include\runStitching.ahk
 #include include\runStitchingBatch.ahk
@@ -34,6 +34,7 @@ STITCH_BASE_DIR := "C:\Users\KeyencePC\Downloads\AutoStitch-Keyence-1.0.1"
 #include include\doNotSaveTiffSmall.ahk
 #include include\saveJpg.ahk
 #include include\namingGui.ahk
+#include include\setupGui.ahk
 
 ;#include %A_ScriptDir%\include\runMockStitching.ahk
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

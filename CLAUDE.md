@@ -8,11 +8,11 @@ AutoStitch-Keyence automates image stitching for Keyence BZ-X800 microscopes usi
 
 ## Running the Script
 
-Copy `run-instructions/runStitch.ahk` to the directory containing image folders, then double-click it. The script processes all subfolders (up to 4 levels deep) that contain `.gci` files and places output in an `output/` subdirectory.
+Double-click `run-instructions/runStitch.ahk`. A **Setup GUI** (`include/setupGui.ahk`) opens first, where the user picks the input folder, the output folder (anywhere — no longer forced to `<input>/output`), and the stitching options. Last-used values persist to `settings.ini` in the install directory. The script processes all subfolders of the input (up to 4 levels deep) that contain `.gci` files. After Setup, a **Naming GUI** (`include/namingGui.ahk`) lets the user assign output names (typed, auto-incremented via "Fill below", or pasted as a column from a tracking spreadsheet); names are applied to the detected folders by position and the output files are renamed after stitching.
 
 ## Two Stitching Modes
 
-A startup dialog in `runStitch.ahk` lets the user choose:
+The Setup GUI's method radio (persisted to `settings.ini`) lets the user choose:
 
 1. **Keyence Composite (RGB)** — `saveIndividualChannels = false`. Uses `runStitchingBatch()` in `include/runStitchingBatch.ahk`. Opens Keyence once, unchecks CH1/CH2/CH3 (overlay only), processes all folders in sequence without restarting the Analyzer. Skips ImageJ entirely. The Analyzer is left open when done.
 
@@ -21,11 +21,14 @@ A startup dialog in `runStitch.ahk` lets the user choose:
 ## Architecture
 
 ```
-run-instructions/runStitch.ahk   ← Entry point: sets options, calls stitchFolders()
+run-instructions/runStitch.ahk   ← Entry point: Setup GUI → collect → Naming GUI →
+  │                                  stitchFolders() → renameOutputFiles()
   └── ahkStitch.ahk              ← Core orchestrator: includes all modules, defines
       │                              stitchFolders(), stitchFoldersRecursive(),
       │                              collectFoldersWithGci(), getDefaultOptions()
       └── include/                ← One function per file (AHK v1 pattern)
+          ├── setupGui.ahk           Startup GUI: input/output folders + options, settings.ini
+          ├── namingGui.ahk          Pre-stitch naming GUI + post-stitch renameOutputFiles()
           ├── runStitching.ahk       Per-folder stitching (ImageJ mode)
           ├── runStitchingBatch.ahk  Batch stitching (Keyence RGB mode) + isPixelBlue()
           ├── runPost.ahk            Launches Fiji headless with postprocess.py

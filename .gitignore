@@ -1,0 +1,10 @@
+# Local, machine-specific settings written by the Setup GUI
+settings.ini
+
+# Stitching output / scratch
+output/
+tmpdir/
+
+# Stray test artifacts
+_*.ahk
+_*.txt

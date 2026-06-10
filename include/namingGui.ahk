@@ -2,6 +2,13 @@
 ; Naming GUI — Shows detected folders and lets user assign custom output names
 ; Called before stitching; renameOutputFiles() called after stitching
 ;
+; Two ways to assign names:
+;   1) "Paste names..." — paste the output-name column from your tracking
+;      spreadsheet; names are applied to the detected folders top-to-bottom.
+;      This is the primary workflow and accommodates any naming scheme.
+;   2) Per-row edit boxes — type a name, or use "Fill below" to auto-increment
+;      a trailing _NN number down the list.
+;
 ; All callbacks are functions (not labels) to avoid top-level return statements
 ; that would terminate the auto-execute section when this file is #included.
 ; ============================================================================
@@ -17,17 +24,27 @@ showNamingGui(ByRef folderList) {
 	NamingGuiResult := ""
 
 	; Calculate dimensions
-	rowHeight := 35
+	rowHeight := 30
 	labelW := 280
 	editW := 280
 	btnW := 80
 	guiW := 720
 	contentH := NamingFolderCount * rowHeight + 20
-	visibleH := 450
-	if (contentH < visibleH) {
-		visibleH := contentH
+
+	; Cap the visible panel to the screen so long sessions (~30 sections) fit
+	visibleCap := A_ScreenHeight - 220
+	if (visibleCap < 200) {
+		visibleCap := 200
 	}
-	winH := visibleH + 70
+	visibleH := contentH
+	if (visibleH > visibleCap) {
+		visibleH := visibleCap
+	}
+
+	toolbarH := 38
+	panelY := toolbarH + 5
+	btnY := panelY + visibleH + 12
+	winH := btnY + 44
 
 	; Destroy any previous instance
 	Gui, NamingMain:Destroy
@@ -36,6 +53,10 @@ showNamingGui(ByRef folderList) {
 	; Outer window
 	Gui, NamingMain:+Resize -MaximizeBox +HwndNamingMainHwnd
 	Gui, NamingMain:Margin, 10, 10
+
+	; Top toolbar: paste-from-spreadsheet entry point
+	Gui, NamingMain:Add, Button, x10 y8 w120 h26 gPasteNamesClicked, Paste names...
+	Gui, NamingMain:Add, Text, x140 y13 w560 h20, Paste your spreadsheet's output-name column to fill all rows in order.
 
 	; Scrollable child panel parented to main window via HWND
 	Gui, NamingScroll:+Parent%NamingMainHwnd% -Caption +Border
@@ -61,10 +82,9 @@ showNamingGui(ByRef folderList) {
 	}
 
 	; Show child panel inside main window
-	Gui, NamingScroll:Show, x5 y5 w%guiW% h%contentH%
+	Gui, NamingScroll:Show, x5 y%panelY% w%guiW% h%visibleH%
 
 	; OK and Skip buttons on the main window
-	btnY := visibleH + 15
 	okX := guiW // 2 - 90
 	skipX := guiW // 2 + 10
 	Gui, NamingMain:Add, Button, x%okX% y%btnY% w80 h28 gNamingOK Default, OK
@@ -192,6 +212,141 @@ FillBelowClicked() {
 		nextNum := nextNum + 1
 		idx := idx + 1
 	}
+}
+
+; ============================================================================
+; Paste-from-spreadsheet: fill all rows from a pasted column of names
+; ============================================================================
+
+PasteNamesClicked() {
+	global
+	Gui, NamingPaste:Destroy
+	Gui, NamingPaste:+AlwaysOnTop +ToolWindow +Owner%NamingMainHwnd%
+	Gui, NamingPaste:Margin, 12, 12
+	Gui, NamingPaste:Add, Text, w560, Paste the output-name column from your spreadsheet (one name per row).`nYou can paste several columns at once — the name column is detected automatically and a header row is ignored.`nNames are applied to the folders top-to-bottom; leave a row blank to skip that folder.
+	Gui, NamingPaste:Add, Edit, w560 h320 vNamingPasteText -Wrap +VScroll +HScroll
+	Gui, NamingPaste:Add, Button, x12 w110 gNamingPasteOK Default, Apply
+	Gui, NamingPaste:Add, Button, x+10 w110 gNamingPasteCancel, Cancel
+	Gui, NamingPaste:Show, , Paste Names
+}
+
+NamingPasteOK() {
+	global
+	Gui, NamingPaste:Submit, NoHide
+	applyPastedNames(NamingPasteText)
+	Gui, NamingPaste:Destroy
+}
+
+NamingPasteCancel() {
+	Gui, NamingPaste:Destroy
+}
+
+NamingPasteGuiClose() {
+	Gui, NamingPaste:Destroy
+}
+
+; Write the parsed names into the per-row edit boxes, top-to-bottom.
+applyPastedNames(rawText) {
+	global  ; NamingFolderCount and the dynamic NamingEdit vars
+
+	names := parsePastedNames(rawText)
+	cnt := names.MaxIndex()
+	if (cnt = "" or cnt = 0) {
+		MsgBox, 0x40, Paste Names, No names were found in the pasted text.
+		return
+	}
+
+	Loop, %NamingFolderCount% {
+		idx := A_Index
+		val := (idx <= cnt) ? names[idx] : ""
+		GuiControl, NamingScroll:, NamingEdit%idx%, %val%
+	}
+
+	if (cnt != NamingFolderCount) {
+		MsgBox, 0x30, Paste Names, Pasted %cnt% name(s) but there are %NamingFolderCount% folder(s).`n`nNames were applied top-to-bottom. Please check the rows line up before clicking OK.
+	}
+}
+
+; Parse pasted clipboard text into an ordered list of output names.
+; Handles a plain one-name-per-line list or a multi-column TSV block copied
+; from a spreadsheet, auto-detecting the column that holds the output names
+; (cells shaped like "M01_A_01") and dropping a leading header/blank row.
+parsePastedNames(rawText) {
+	; Name shape: word chars / hyphens ending in _<digits>, e.g. M01_A_01
+	namePattern := "i)^[\w\-]+_\d+$"
+
+	; Normalize newlines
+	StringReplace, rawText, rawText, `r`n, `n, All
+	StringReplace, rawText, rawText, `r, `n, All
+	lines := StrSplit(rawText, "`n")
+
+	; Split each line into tab-separated columns, tracking the widest row
+	hasTab := false
+	maxCols := 1
+	rows := []
+	for i, ln in lines {
+		if (InStr(ln, "`t")) {
+			hasTab := true
+		}
+		cols := StrSplit(ln, "`t")
+		rows.Push(cols)
+		if (cols.MaxIndex() > maxCols) {
+			maxCols := cols.MaxIndex()
+		}
+	}
+
+	; Choose the source column: the one with the most name-shaped cells
+	chosenCol := 1
+	if (hasTab) {
+		bestScore := -1
+		Loop, %maxCols% {
+			c := A_Index
+			score := 0
+			for i, cols in rows {
+				v := (c <= cols.MaxIndex()) ? Trim(cols[c]) : ""
+				if (RegExMatch(v, namePattern)) {
+					score += 1
+				}
+			}
+			if (score > bestScore) {
+				bestScore := score
+				chosenCol := c
+			}
+		}
+		; No column looked like names — fall back to the last column
+		if (bestScore <= 0) {
+			chosenCol := maxCols
+		}
+	}
+
+	; Extract the chosen column from every row
+	names := []
+	for i, cols in rows {
+		v := (chosenCol <= cols.MaxIndex()) ? Trim(cols[chosenCol]) : ""
+		names.Push(v)
+	}
+
+	; Trim trailing blank rows
+	While (names.MaxIndex() >= 1 and Trim(names[names.MaxIndex()]) = "") {
+		names.Pop()
+	}
+
+	; If we have a name-shaped anchor, drop leading header/blank rows up to it.
+	; (Mid-list blanks are preserved so alignment with the folders is kept.)
+	anyNumbered := false
+	for i, nm in names {
+		if (RegExMatch(nm, namePattern)) {
+			anyNumbered := true
+			break
+		}
+	}
+	if (anyNumbered) {
+		While (names.MaxIndex() >= 1 and !RegExMatch(names[1], namePattern)) {
+			names.RemoveAt(1)
+		}
+	}
+
+	return names
 }
 
 ; ============================================================================
