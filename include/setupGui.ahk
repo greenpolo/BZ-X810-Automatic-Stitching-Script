@@ -21,6 +21,7 @@ showSetupGui(ByRef options, ByRef inputDir, ByRef outputDir) {
 	IniRead, iniOutput,   %SetupIniFile%, paths,   output,      %A_Space%
 	IniRead, iniExportMode, %SetupIniFile%, options, exportMode,  channels
 	IniRead, iniMerge,      %SetupIniFile%, options, imageJMerge, 0
+	IniRead, iniAutoLevel,  %SetupIniFile%, options, autoLevel,   0
 	IniRead, iniCh1,  %SetupIniFile%, channels, ch1,     DAPI
 	IniRead, iniCh2,  %SetupIniFile%, channels, ch2,     GFP
 	IniRead, iniCh3,  %SetupIniFile%, channels, ch3,     RFP
@@ -75,8 +76,10 @@ showSetupGui(ByRef options, ByRef inputDir, ByRef outputDir) {
 	Gui, Setup:Add, Edit, x+2 yp-3 w80 vSetupCh4, %iniCh4%
 	Gui, Setup:Add, Text, x+10 yp+3 w52, Overlay:
 	Gui, Setup:Add, Edit, x+2 yp-3 w80 vSetupOvly, %iniOvly%
+	cbAuto := (iniAutoLevel = 1 or iniAutoLevel = "true") ? "Checked" : ""
+	Gui, Setup:Add, Checkbox, xm y+10 vSetupAutoLevelCB %cbAuto%, Auto-level each channel before export (Wide Image Viewer "Auto" button)
 	cbMerge := (iniMerge = 1 or iniMerge = "true") ? "Checked" : ""
-	Gui, Setup:Add, Checkbox, xm y+10 vSetupMergeCB %cbMerge%, Also merge channels into a composite in ImageJ/Fiji
+	Gui, Setup:Add, Checkbox, xm y+8 vSetupMergeCB %cbMerge%, Also merge channels into a composite in ImageJ/Fiji
 
 	; Options
 	cbCompress := (iniCompress = 1 or iniCompress = "true") ? "Checked" : ""
@@ -130,6 +133,7 @@ showSetupGui(ByRef options, ByRef inputDir, ByRef outputDir) {
 	chNames["bf"]   := Trim(SetupCh4)
 	chNames["ovly"] := Trim(SetupOvly)
 	options["channelNames"] := chNames
+	options["autoLevel"]    := SetupAutoLevelCB ? true : false
 	options["compress"]     := SetupCompressCB ? true : false
 	options["insertScale"]  := SetupScaleCB ? true : false
 	sl := Trim(SetupScaleLenEdit)
@@ -143,6 +147,7 @@ showSetupGui(ByRef options, ByRef inputDir, ByRef outputDir) {
 	IniWrite, %outputDir%, %SetupIniFile%, paths,   output
 	IniWrite, %exportMode%, %SetupIniFile%, options, exportMode
 	IniWrite, % (options["imageJMerge"] ? 1 : 0), %SetupIniFile%, options, imageJMerge
+	IniWrite, % (options["autoLevel"] ? 1 : 0),   %SetupIniFile%, options, autoLevel
 	IniWrite, % chNames["dapi"], %SetupIniFile%, channels, ch1
 	IniWrite, % chNames["gfp"],  %SetupIniFile%, channels, ch2
 	IniWrite, % chNames["rfp"],  %SetupIniFile%, channels, ch3

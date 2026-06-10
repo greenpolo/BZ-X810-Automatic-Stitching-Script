@@ -66,6 +66,8 @@ getDefaultOptions() {
 	options["saveIndividualChannels"] := true
 	; ImageJ/Fiji merge into a composite — off by default (separate files instead)
 	options["imageJMerge"] := false
+	; Click "Auto" Level Correction in the Wide Image Viewer before each export
+	options["autoLevel"] := false
 	; Per-channel filename labels (internal channel key -> label in the filename)
 	channelNames := {}
 	channelNames["dapi"] := "DAPI"

@@ -82,6 +82,25 @@ sendClipboard(text) {
 	Clipboard := 
 }
 
+;; Click the "Auto" Level Correction button in the BZ-X800 Wide Image Viewer
+;; before exporting, so each exported channel gets auto-leveled. Identified
+;; via Window Spy: button text "Auto", ClassNN
+;;   WindowsForms10.BUTTON.app.0.34f5582_r6_ad15
+;; inside the viewer window class WindowsForms10.Window.8.app.0.34f5582_r6_ad1.
+;; Falls back to clicking the control by its "Auto" text if the ClassNN moves.
+autoLevelCorrection(winId) {
+	autoBtn := "WindowsForms10.BUTTON.app.0.34f5582_r6_ad15"
+	WinActivate, ahk_id %winId%
+	WinWaitActive, ahk_id %winId%, , 5
+	Sleep 200
+	ControlClick, %autoBtn%, ahk_id %winId%, , LEFT, , NA
+	if (ErrorLevel) {
+		; Fallback: target the button by its caption text
+		ControlClick, Auto, ahk_id %winId%, , LEFT, , NA
+	}
+	Sleep 1000  ; let the level correction recompute before export
+}
+
 ;; Map an internal channel key (dapi/gfp/rfp/bf/ovly) to the user-facing label
 ;; used in output filenames. Configurable via options["channelNames"] (set in
 ;; the Setup GUI); falls back to sensible defaults. Lets the script reproduce

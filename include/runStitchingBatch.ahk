@@ -175,6 +175,10 @@ runStitchingBatch(folderList, outputDirPath, options) {
 			ExitApp
 		}
 		
+		; Optional: auto-level the overlay in the viewer before exporting
+		if (options["autoLevel"] = true) {
+			autoLevelCorrection(currentWin)
+		}
 		; Export TIFF
 		if (isInList("TIFF", userFormats)) {
 			exportTiff(outputDirPath, currentName, "ovly")

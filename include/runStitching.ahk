@@ -260,6 +260,10 @@ runStitching(inputDirPath, currentName, outputDirPath, options, imageInfo) {
 			ExitApp
 		}
 		; MsgBox Processing channel %channel%, window %currentWin%
+		; Optional: auto-level this channel in the viewer before exporting
+		if (options["autoLevel"] = true) {
+			autoLevelCorrection(currentWin)
+		}
 		if (isInList("BigTIFF", userFormats)) {
 			exportBigTiff(outputDirPath, currentName, chLabel)
 		}
