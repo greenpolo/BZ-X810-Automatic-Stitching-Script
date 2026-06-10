@@ -19,6 +19,28 @@ tmpDir := outputDir "\tmpdir"
 collectFoldersWithGci(inputDir, "", outputDir, tmpDir, options, previewFolderList)
 showNamingGui(previewFolderList)
 
+;;; Resume support: detect folders whose output already exists (manual or prior run).
+;;; Build a path -> custom-name map (consulted by the skip checks during stitching),
+;;; then count how many will be skipped and confirm with the user.
+gCustomNameByPath := {}
+alreadyStitchedCount := 0
+for idx, fi in previewFolderList {
+	gCustomNameByPath[fi["path"]] := fi["customName"]
+	if (outputAlreadyStitched(outputDir, resolveOutputName(fi["path"], fi["name"]))) {
+		alreadyStitchedCount += 1
+	}
+}
+totalFolders := previewFolderList.MaxIndex()
+if (totalFolders = "") {
+	totalFolders := 0
+}
+if (alreadyStitchedCount > 0) {
+	remainingFolders := totalFolders - alreadyStitchedCount
+	MsgBox, 0x21, Resume, %alreadyStitchedCount% of %totalFolders% folder(s) already have output and will be skipped.`n%remainingFolders% folder(s) will be stitched.`n`nClick OK to continue or Cancel to abort.
+	IfMsgBox Cancel
+		ExitApp
+}
+
 ;;; Stitch
 stitchFolders(inputDir, outputDir, options)
 

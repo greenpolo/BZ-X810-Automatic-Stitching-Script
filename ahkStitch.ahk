@@ -136,18 +136,24 @@ stitchFoldersRecursive(inputDir, prefix, level, outputDir, tmpDir, options) {
 		
 		; Compose the output file name
 		outputFileName := formatFileName(prefix, currentName, "__", options["shortName"])
-		
-		; Call the stiching function
-		imageData := {}
-		FileCreateDir %tmpDir%
-		hasGci := runStitching(currentWorkDir, outputFileName, tmpDir, options, imageData)
-		if (hasGci) {
-			; Succesfull stitching, run postprocessing (only if using ImageJ merge mode)
-			if (options["saveIndividualChannels"] = true) {
-				runPost(tmpDir, outputDir, options, imageData)
+
+		; Resume support: skip this folder if its output already exists
+		; (manual or prior run). Checks the real output dir, not the tmp dir.
+		if (outputAlreadyStitched(outputDir, resolveOutputName(currentWorkDir, outputFileName))) {
+			hasGci := false
+		} else {
+			; Call the stiching function
+			imageData := {}
+			FileCreateDir %tmpDir%
+			hasGci := runStitching(currentWorkDir, outputFileName, tmpDir, options, imageData)
+			if (hasGci) {
+				; Succesfull stitching, run postprocessing (only if using ImageJ merge mode)
+				if (options["saveIndividualChannels"] = true) {
+					runPost(tmpDir, outputDir, options, imageData)
+				}
 			}
+			FileRemoveDir %tmpDir%, 1
 		}
-		FileRemoveDir %tmpDir%, 1
 		
 		; Set the root to process the next level of directories
 		nextPrefix := outputFileName  ;@ The current file name is the next prefix

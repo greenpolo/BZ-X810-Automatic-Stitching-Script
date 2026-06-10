@@ -82,6 +82,43 @@ sendClipboard(text) {
 	Clipboard := 
 }
 
+;; Resume support: resolve the final output name for a stitched folder.
+;; Uses the user's custom name from the naming GUI when one was assigned
+;; (looked up by folder path), otherwise the auto-generated name.
+resolveOutputName(path, autoName) {
+	global gCustomNameByPath
+	if (IsObject(gCustomNameByPath) and gCustomNameByPath.HasKey(path)) {
+		cn := gCustomNameByPath[path]
+		if (cn != "") {
+			return cn
+		}
+	}
+	return autoName
+}
+
+;; Resume support: returns true if the output directory already contains a
+;; stitched file for `name` — any file whose name is `name` followed by "_",
+;; "." or end-of-name (e.g. name "M22_A_01" matches "M22_A_01_DAPI.tif" or
+;; "M22_A_01.tif"). Used to skip folders already stitched manually or in a
+;; previous run. The boundary check prevents "M22_A_1" matching "M22_A_11".
+outputAlreadyStitched(outputDir, name) {
+	if (name = "" or outputDir = "" or !InStr(FileExist(outputDir), "D")) {
+		return false
+	}
+	nameLen := StrLen(name)
+	Loop, Files, %outputDir%\*.*
+	{
+		fileName := A_LoopFileName
+		if (SubStr(fileName, 1, nameLen) = name) {
+			nextChar := SubStr(fileName, nameLen + 1, 1)
+			if (nextChar = "_" or nextChar = "." or nextChar = "") {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 ;; Splits the name
 ;;
 ;;
