@@ -34,10 +34,12 @@ runStitchingBatch(folderList, outputDirPath, options) {
 		inputDirPath := folderInfo["path"]
 		currentName := folderInfo["name"]
 
-		; Resume support: skip folders whose output already exists.
-		; Load a Group is already open from the previous iteration (or pre-loop),
-		; so continuing here keeps that invariant intact for the next folder.
-		if (outputAlreadyStitched(outputDirPath, resolveOutputName(inputDirPath, currentName))) {
+		; Resume support: skip folders whose output already exists (checked in the
+		; per-mouse subfolder where the file ends up after rename). Load a Group is
+		; already open from the previous iteration (or pre-loop), so continuing here
+		; keeps that invariant intact for the next folder.
+		batchExportName := resolveOutputName(inputDirPath, currentName)
+		if (outputAlreadyStitched(outputDirForName(outputDirPath, batchExportName, options), batchExportName)) {
 			continue
 		}
 

@@ -22,6 +22,8 @@ Channel filenames use configurable labels (Setup GUI → `options["channelNames"
 
 The Setup GUI runs before stitching; a separate **Naming GUI** then assigns per-folder output names, and folders whose output already exists are skipped (resume support, `outputAlreadyStitched()`).
 
+When **Organize output into per-mouse subfolders** is enabled (`options["perMouseFolders"]`, `outputDirForName()` in `utils.ahk`), each section is written to `<output>\<prefix>` where the prefix is the name text before the first `_` (e.g. `M23_A_01` → `<output>\M23`). This handles one acquisition that spans multiple mice — the Keyence has 3 slide holders, so a single XY-image folder can hold e.g. M23 slide 1, M23 slide 2, and M22 slide 4, which then fan out into `<output>\M23` and `<output>\M22`. In channels mode files are written straight to the subfolder; in overlay mode `renameOutputFiles()` moves them there. Point the Setup output at the **base** folder (e.g. `…\Stitched`).
+
 ## Architecture
 
 ```

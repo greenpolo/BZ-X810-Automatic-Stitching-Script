@@ -22,6 +22,7 @@ showSetupGui(ByRef options, ByRef inputDir, ByRef outputDir) {
 	IniRead, iniExportMode, %SetupIniFile%, options, exportMode,  channels
 	IniRead, iniMerge,      %SetupIniFile%, options, imageJMerge, 0
 	IniRead, iniAutoLevel,  %SetupIniFile%, options, autoLevel,   0
+	IniRead, iniPerMouse,   %SetupIniFile%, options, perMouseFolders, 0
 	IniRead, iniCh1,  %SetupIniFile%, channels, ch1,     DAPI
 	IniRead, iniCh2,  %SetupIniFile%, channels, ch2,     GFP
 	IniRead, iniCh3,  %SetupIniFile%, channels, ch3,     RFP
@@ -57,6 +58,8 @@ showSetupGui(ByRef options, ByRef inputDir, ByRef outputDir) {
 	Gui, Setup:Add, Edit, x+5 yp-4 w420 vSetupOutputEdit, %iniOutput%
 	Gui, Setup:Add, Button, x+6 yp-1 w70 gSetupBrowseOutput, Browse
 	Gui, Setup:Add, Button, xm+100 y+4 w120 gSetupAutoOutput, Auto (input\output)
+	cbPerMouse := (iniPerMouse = 1 or iniPerMouse = "true") ? "Checked" : ""
+	Gui, Setup:Add, Checkbox, xm y+8 vSetupPerMouseCB %cbPerMouse%, Organize output into per-mouse subfolders (name prefix, e.g. M23_A_01 -> <output>\M23)
 
 	; Output channels + per-channel filename labels
 	Gui, Setup:Add, Text, xm y+16, Output channels:
@@ -134,6 +137,7 @@ showSetupGui(ByRef options, ByRef inputDir, ByRef outputDir) {
 	chNames["ovly"] := Trim(SetupOvly)
 	options["channelNames"] := chNames
 	options["autoLevel"]    := SetupAutoLevelCB ? true : false
+	options["perMouseFolders"] := SetupPerMouseCB ? true : false
 	options["compress"]     := SetupCompressCB ? true : false
 	options["insertScale"]  := SetupScaleCB ? true : false
 	sl := Trim(SetupScaleLenEdit)
@@ -148,6 +152,7 @@ showSetupGui(ByRef options, ByRef inputDir, ByRef outputDir) {
 	IniWrite, %exportMode%, %SetupIniFile%, options, exportMode
 	IniWrite, % (options["imageJMerge"] ? 1 : 0), %SetupIniFile%, options, imageJMerge
 	IniWrite, % (options["autoLevel"] ? 1 : 0),   %SetupIniFile%, options, autoLevel
+	IniWrite, % (options["perMouseFolders"] ? 1 : 0), %SetupIniFile%, options, perMouseFolders
 	IniWrite, % chNames["dapi"], %SetupIniFile%, channels, ch1
 	IniWrite, % chNames["gfp"],  %SetupIniFile%, channels, ch2
 	IniWrite, % chNames["rfp"],  %SetupIniFile%, channels, ch3

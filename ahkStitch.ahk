@@ -68,6 +68,8 @@ getDefaultOptions() {
 	options["imageJMerge"] := false
 	; Click "Auto" Level Correction in the Wide Image Viewer before each export
 	options["autoLevel"] := false
+	; Organize output into per-mouse subfolders by name prefix (before first "_")
+	options["perMouseFolders"] := false
 	; Per-channel filename labels (internal channel key -> label in the filename)
 	channelNames := {}
 	channelNames["dapi"] := "DAPI"
@@ -158,10 +160,12 @@ stitchFoldersRecursive(inputDir, prefix, level, outputDir, tmpDir, options) {
 		; rename to depend on) and resume detection lines up.
 		outputFileName := formatFileName(prefix, currentName, "__", options["shortName"])
 		exportName := resolveOutputName(currentWorkDir, outputFileName)
+		; Per-mouse routing: this section's files land in baseOutput\<mouse> when enabled
+		sectionDir := outputDirForName(outputDir, exportName, options)
 
 		; Resume support: skip this folder if its output already exists
-		; (manual or prior run). Checks the real output dir, not the tmp dir.
-		if (outputAlreadyStitched(outputDir, exportName)) {
+		; (manual or prior run). Checks the section's real output dir, not the tmp dir.
+		if (outputAlreadyStitched(sectionDir, exportName)) {
 			hasGci := false
 		} else if (options["imageJMerge"] = true) {
 			; Export channels to a temp dir, then merge into a composite in Fiji
@@ -169,13 +173,15 @@ stitchFoldersRecursive(inputDir, prefix, level, outputDir, tmpDir, options) {
 			FileCreateDir %tmpDir%
 			hasGci := runStitching(currentWorkDir, exportName, tmpDir, options, imageData)
 			if (hasGci) {
-				runPost(tmpDir, outputDir, options, imageData)
+				FileCreateDir %sectionDir%
+				runPost(tmpDir, sectionDir, options, imageData)
 			}
 			FileRemoveDir %tmpDir%, 1
 		} else {
-			; Export each channel (+ overlay) straight to the output dir, no merge
+			; Export each channel (+ overlay) straight to the section dir, no merge
 			imageData := {}
-			hasGci := runStitching(currentWorkDir, exportName, outputDir, options, imageData)
+			FileCreateDir %sectionDir%
+			hasGci := runStitching(currentWorkDir, exportName, sectionDir, options, imageData)
 		}
 		
 		; Set the root to process the next level of directories

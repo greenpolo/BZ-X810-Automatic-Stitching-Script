@@ -151,6 +151,28 @@ resolveOutputName(path, autoName) {
 	return autoName
 }
 
+;; Per-mouse output organization: returns the directory a section should be
+;; written to. With options["perMouseFolders"] on, files are grouped into a
+;; subfolder named by the output name's prefix (the text before the first "_"),
+;; e.g. "M23_A_01" -> baseDir\M23, "M22_D_01" -> baseDir\M22. This lets one
+;; acquisition that spans several mice (3 Keyence slide holders) fan out into
+;; per-mouse folders. Off (default) -> everything goes straight to baseDir.
+outputDirForName(baseDir, name, options) {
+	if (options["perMouseFolders"] != true) {
+		return baseDir
+	}
+	prefix := name
+	p := InStr(name, "_")
+	if (p > 1) {
+		prefix := SubStr(name, 1, p - 1)
+	}
+	prefix := Trim(prefix)
+	if (prefix = "") {
+		return baseDir
+	}
+	return baseDir "\" prefix
+}
+
 ;; Resume support: returns true if the output directory already contains a
 ;; stitched file for `name` — any file whose name is `name` followed by "_",
 ;; "." or end-of-name (e.g. name "M22_A_01" matches "M22_A_01_DAPI.tif" or

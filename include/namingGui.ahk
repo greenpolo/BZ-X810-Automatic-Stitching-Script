@@ -352,7 +352,7 @@ parsePastedNames(rawText) {
 ; ============================================================================
 ; Rename output files after stitching completes
 ; ============================================================================
-renameOutputFiles(ByRef folderList, outputDir) {
+renameOutputFiles(ByRef folderList, outputDir, options) {
 	if (folderList.MaxIndex() = "" or folderList.MaxIndex() = 0) {
 		return
 	}
@@ -408,12 +408,15 @@ renameOutputFiles(ByRef folderList, outputDir) {
 				nextChar := SubStr(fileName, StrLen(oldPrefix) + 1, 1)
 				if (nextChar = "_" or nextChar = "." or nextChar = "") {
 					newFileName := newPrefix . SubStr(fileName, StrLen(oldPrefix) + 1)
+					; Per-mouse routing: send the renamed file to baseOutput\<mouse>
+					destDir := outputDirForName(outputDir, newPrefix, options)
 					; Strip _ovly suffix only if it won't collide with an existing file
 					strippedName := RegExReplace(newFileName, "_ovly(\.[^.]+)$", "$1")
-					if (strippedName != newFileName and FileExist(outputDir "\" strippedName) = "") {
+					if (strippedName != newFileName and FileExist(destDir "\" strippedName) = "") {
 						newFileName := strippedName
 					}
-					newFilePath := outputDir "\" newFileName
+					FileCreateDir %destDir%
+					newFilePath := destDir "\" newFileName
 					FileMove, %filePath%, %newFilePath%
 				}
 			}

@@ -26,7 +26,8 @@ gCustomNameByPath := {}
 alreadyStitchedCount := 0
 for idx, fi in previewFolderList {
 	gCustomNameByPath[fi["path"]] := fi["customName"]
-	if (outputAlreadyStitched(outputDir, resolveOutputName(fi["path"], fi["name"]))) {
+	resolvedName := resolveOutputName(fi["path"], fi["name"])
+	if (outputAlreadyStitched(outputDirForName(outputDir, resolvedName, options), resolvedName)) {
 		alreadyStitchedCount += 1
 	}
 }
@@ -44,8 +45,8 @@ if (alreadyStitchedCount > 0) {
 ;;; Stitch
 stitchFolders(inputDir, outputDir, options)
 
-;;; Post-stitch: rename output files to custom names
-renameOutputFiles(previewFolderList, outputDir)
+;;; Post-stitch: rename output files to custom names (and route per-mouse)
+renameOutputFiles(previewFolderList, outputDir, options)
 
 
 ;;; Pressing ESC ends the script anytime
