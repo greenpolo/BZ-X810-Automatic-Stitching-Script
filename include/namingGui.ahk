@@ -58,8 +58,10 @@ showNamingGui(ByRef folderList) {
 	Gui, NamingMain:Add, Button, x10 y8 w120 h26 gPasteNamesClicked, Paste names...
 	Gui, NamingMain:Add, Text, x140 y13 w560 h20, Paste your spreadsheet's output-name column to fill all rows in order.
 
-	; Scrollable child panel parented to main window via HWND
-	Gui, NamingScroll:+Parent%NamingMainHwnd% -Caption +Border
+	; Scrollable child panel parented to main window via HWND.
+	; +0x200000 = WS_VSCROLL: gives the panel a real vertical scrollbar so long
+	; sessions (more rows than fit on screen) can be reached (see initNamingScrollbar).
+	Gui, NamingScroll:+Parent%NamingMainHwnd% -Caption +Border +0x200000 +HwndNamingScrollHwnd
 	Gui, NamingScroll:Margin, 5, 5
 
 	; Build rows
@@ -83,6 +85,10 @@ showNamingGui(ByRef folderList) {
 
 	; Show child panel inside main window
 	Gui, NamingScroll:Show, x5 y%panelY% w%guiW% h%visibleH%
+
+	; Activate the scrollbar. contentH is the full row stack; visibleH is the
+	; window the panel shows. If everything already fits, the bar auto-hides.
+	initNamingScrollbar(NamingScrollHwnd, contentH, visibleH)
 
 	; OK and Skip buttons on the main window
 	okX := guiW // 2 - 90
@@ -347,6 +353,120 @@ parsePastedNames(rawText) {
 	}
 
 	return names
+}
+
+; ============================================================================
+; Scrollable panel support
+;
+; The NamingScroll child window holds every row at full height (contentH) but is
+; shown only `visibleH` tall. WS_VSCROLL (added at creation) gives it a real
+; scrollbar; these handlers slide the rows with ScrollWindow so all rows are
+; reachable. The scrollbar + mouse wheel both drive applyNamingScroll().
+; Scroll units are pixels. Constants: SB_VERT=1, SIF_RANGE=1, SIF_PAGE=2,
+; SIF_POS=4, SIF_TRACKPOS=16; WM_VSCROLL=0x115, WM_MOUSEWHEEL=0x20A.
+; ============================================================================
+
+initNamingScrollbar(hwnd, contentH, visibleH) {
+	global NamingScrollHwndG, NamingScrollPos, NamingScrollMax, NamingScrollPage
+	NamingScrollHwndG := hwnd
+	NamingScrollPos   := 0
+	NamingScrollMax   := contentH
+	NamingScrollPage  := visibleH
+
+	; SCROLLINFO: cbSize, fMask, nMin, nMax, nPage, nPos, nTrackPos (28 bytes)
+	VarSetCapacity(si, 28, 0)
+	NumPut(28, si, 0, "UInt")            ; cbSize
+	NumPut(1 | 2 | 4, si, 4, "UInt")     ; fMask = SIF_RANGE|SIF_PAGE|SIF_POS
+	NumPut(0, si, 8, "Int")              ; nMin
+	NumPut(contentH, si, 12, "Int")      ; nMax
+	NumPut(visibleH, si, 16, "UInt")     ; nPage (thumb sizing; auto-hides if >= range)
+	NumPut(0, si, 20, "Int")             ; nPos
+	DllCall("SetScrollInfo", "Ptr", hwnd, "Int", 1, "Ptr", &si, "Int", true)
+
+	OnMessage(0x115, "Naming_WM_VSCROLL")
+	OnMessage(0x20A, "Naming_WM_MOUSEWHEEL")
+}
+
+; Clamp newPos to [0, max], scroll the rows by the delta, and sync the thumb.
+applyNamingScroll(hwnd, newPos) {
+	global NamingScrollPos, NamingScrollMax, NamingScrollPage
+	maxPos := NamingScrollMax - NamingScrollPage
+	if (maxPos < 0) {
+		maxPos := 0
+	}
+	if (newPos < 0) {
+		newPos := 0
+	}
+	if (newPos > maxPos) {
+		newPos := maxPos
+	}
+	delta := NamingScrollPos - newPos   ; +ve => content moves down (we scrolled up)
+	if (delta = 0) {
+		return
+	}
+	DllCall("ScrollWindow", "Ptr", hwnd, "Int", 0, "Int", delta, "Ptr", 0, "Ptr", 0)
+	DllCall("UpdateWindow", "Ptr", hwnd)
+	NamingScrollPos := newPos
+
+	VarSetCapacity(si, 28, 0)
+	NumPut(28, si, 0, "UInt")
+	NumPut(4, si, 4, "UInt")             ; fMask = SIF_POS
+	NumPut(newPos, si, 20, "Int")
+	DllCall("SetScrollInfo", "Ptr", hwnd, "Int", 1, "Ptr", &si, "Int", true)
+}
+
+; Scrollbar arrows/page/thumb -> reposition the rows.
+Naming_WM_VSCROLL(wParam, lParam, msg, hwnd) {
+	global NamingScrollHwndG, NamingScrollPos, NamingScrollPage
+	if (hwnd != NamingScrollHwndG) {
+		return  ; not our panel; let others handle it
+	}
+	action := wParam & 0xFFFF
+
+	; Pull current pos + the live thumb position for drag actions
+	VarSetCapacity(si, 28, 0)
+	NumPut(28, si, 0, "UInt")
+	NumPut(4 | 16, si, 4, "UInt")        ; fMask = SIF_POS|SIF_TRACKPOS
+	DllCall("GetScrollInfo", "Ptr", hwnd, "Int", 1, "Ptr", &si)
+	curPos   := NumGet(si, 20, "Int")
+	trackPos := NumGet(si, 24, "Int")
+
+	newPos := curPos
+	lineStep := 30                        ; one row
+	if (action = 0) {                     ; SB_LINEUP
+		newPos -= lineStep
+	} else if (action = 1) {              ; SB_LINEDOWN
+		newPos += lineStep
+	} else if (action = 2) {              ; SB_PAGEUP
+		newPos -= NamingScrollPage
+	} else if (action = 3) {              ; SB_PAGEDOWN
+		newPos += NamingScrollPage
+	} else if (action = 5 or action = 4) { ; SB_THUMBTRACK / SB_THUMBPOSITION
+		newPos := trackPos
+	} else {
+		return 0
+	}
+	applyNamingScroll(hwnd, newPos)
+	return 0
+}
+
+; Mouse wheel anywhere over the naming window scrolls the panel (~3 rows/notch).
+Naming_WM_MOUSEWHEEL(wParam, lParam, msg, hwnd) {
+	global NamingScrollHwndG, NamingScrollPos, NamingMainHwnd
+	if (!NamingScrollHwndG) {
+		return
+	}
+	; Only when the naming window is in front (so the Paste dialog isn't hijacked)
+	if (!WinActive("ahk_id " NamingMainHwnd)) {
+		return
+	}
+	delta := (wParam >> 16) & 0xFFFF
+	if (delta > 0x7FFF) {
+		delta -= 0x10000                  ; sign-extend
+	}
+	newPos := NamingScrollPos - Round((delta / 120) * 90)
+	applyNamingScroll(NamingScrollHwndG, newPos)
+	return 0
 }
 
 ; ============================================================================

@@ -102,14 +102,48 @@ autoLevelCorrection(winId) {
 	if (ErrorLevel) {
 		ControlClick, Auto, ahk_id %winId%, , LEFT, , NA
 	}
-	Sleep 800  ; let the histogram recompute
+
+	; Clicking Auto opens a "Correction" dialog ("Creating Corrected Image...")
+	; that runs ~10s. Apply is ignored while it is up, so wait for it to finish.
+	if (!waitForCorrectionDialog(8)) {
+		Sleep 3000  ; no dialog detected (e.g. instant) — brief settle fallback
+	}
+	Sleep 500
 
 	; Apply: commit it so the export reflects the correction
 	ControlClick, %applyBtn%, ahk_id %winId%, , LEFT, , NA
 	if (ErrorLevel) {
 		ControlClick, Apply, ahk_id %winId%, , LEFT, , NA
 	}
-	Sleep 1000  ; let the correction apply before export
+	; Apply may also recompute the corrected image; wait for that dialog to clear
+	waitForCorrectionDialog(3)
+	Sleep 800
+}
+
+;; Wait for the BZ-X800 "Correction" progress dialog ("Creating Corrected
+;; Image...") to appear (up to appearSeconds) and then close (up to 3 min).
+;; Matched by title because the dialog shares the viewer's window class. Returns
+;; true if the dialog was seen. Saves/restores the title match mode.
+waitForCorrectionDialog(appearSeconds) {
+	prevMatch := A_TitleMatchMode
+	SetTitleMatchMode, 2  ; title "contains"
+	WinWait, Correction, , %appearSeconds%
+	appeared := !ErrorLevel
+	if (appeared) {
+		WinWaitClose, Correction, , 180
+	}
+	SetTitleMatchMode, %prevMatch%
+	return appeared
+}
+
+;; Whether a channel should get Auto Level Correction before export, per the
+;; per-channel selection in options["autoLevelChannels"] (set in the Setup GUI).
+channelAutoLevel(channel, options) {
+	sel := options["autoLevelChannels"]
+	if (IsObject(sel) and sel.HasKey(channel)) {
+		return (sel[channel] = true or sel[channel] = 1)
+	}
+	return false
 }
 
 ;; Map an internal channel key (dapi/gfp/rfp/bf/ovly) to the user-facing label
@@ -135,6 +169,17 @@ channelLabel(internalKey, options) {
 	if (internalKey = "ovly")
 		return "Overlay"
 	return internalKey
+}
+
+;; Whether the user assigned a (non-blank) custom name to this folder in the
+;; Naming GUI. Stitching only runs for named folders, so leaving a folder blank
+;; skips it — the simple way to re-run when some folders are already stitched.
+hasAssignedName(path) {
+	global gCustomNameByPath
+	if (IsObject(gCustomNameByPath) and gCustomNameByPath.HasKey(path)) {
+		return (Trim(gCustomNameByPath[path]) != "")
+	}
+	return false
 }
 
 ;; Resume support: resolve the final output name for a stitched folder.

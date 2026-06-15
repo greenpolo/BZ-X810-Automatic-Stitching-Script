@@ -56,95 +56,81 @@ runStitching(inputDirPath, currentName, outputDirPath, options, imageInfo) {
 	WinWaitActive, Load a Group., , 3000     ; Wait
 	WinActivate, Load a Group.
 	
-	;Get all the image channels
-	; return in the order they will be processed, overlay first
-	allChannels := getImageChannels(imageInfo)
-	
-	; Filter channels if we only want to save the composite
-	if (options["saveIndividualChannels"] = false) {
-		hasOverlay := false
-		for i, channel in allChannels {
-			if (channel = "ovly") {
-				hasOverlay := true
-			}
+	;Get all the image channels detected in the acquisition (overlay first).
+	; getImageChannels also adds "ovly" when multi-channel and toggles the overlay box.
+	detectedAll := getImageChannels(imageInfo)
+
+	; The individual channels actually present (exclude the overlay pseudo-channel)
+	detectedChannels := []
+	for i, ch in detectedAll {
+		if (ch != "ovly") {
+			detectedChannels.Push(ch)
 		}
-		
-		if (hasOverlay) {
-			; If overlay exists, keep ONLY the overlay
-			newChannels := []
-			newChannels.Push("ovly")
-			allChannels := newChannels
-		}
-		; If no overlay is present (e.g. single channel), we keep the original list 
-		; to ensure at least that one image is saved.
 	}
-	
-	; Uncheck CH1, CH2, CH3 checkboxes if we only want composite
-	if (options["saveIndividualChannels"] = false) {
-		; Coordinates provided by user (Client)
-		; CH1: 590, 91
-		; CH2: 904, 91
-		; CH3: 591, 514
-		
-		CoordMode, Mouse, Client
-		
-		channelCoords := {}
-		channelCoords["CH1"] := [590, 91]
-		channelCoords["CH2"] := [904, 91]
-		channelCoords["CH3"] := [590, 511]
-		
-		For chName, coords in channelCoords {
-			x := coords[1]
-			y := coords[2]
-			PixelGetColor, checkColor, %x%, %y%, RGB
-			; Blue = CHECKED, Gray/White = UNCHECKED
-			isChecked := isPixelBlue(checkColor)
-			
-			if (isChecked) {
-				Click, %x%, %y%
-				Sleep 500
-			}
+
+	; Filter to the channels the user selected to export (Setup GUI).
+	; Order is preserved (overlay first), matching the viewer window order.
+	exportSel := options["exportChannels"]
+	allChannels := []
+	for i, channel in detectedAll {
+		want := true
+		if (IsObject(exportSel) and exportSel.HasKey(channel)) {
+			want := (exportSel[channel] = true or exportSel[channel] = 1)
 		}
-	} else {
-		; ImageJ Merge mode: ensure all detected channel boxes ARE checked
-		; Map channel names back to checkbox coordinates
-		CoordMode, Mouse, Client
-		CoordMode, Pixel, Client
-		
-		; Stabilize window before pixel sampling
-		; (getImageChannels did heavy keyboard/mouse work that may leave tooltips or focus artifacts)
-		WinActivate, Load a Group.
-		Sleep 500
-		Click, 300, 10  ; Click neutral area (title bar) to clear any hover effects
-		Sleep 500
-		
-		channelToCoord := {}
-		channelToCoord["dapi"] := [590, 91]   ; CH1
-		channelToCoord["gfp"]  := [904, 91]   ; CH2
-		channelToCoord["rfp"]  := [590, 511]  ; CH3
-		channelToCoord["bf"]   := [904, 513]  ; CH4 (if it exists)
-		
-		for i, channel in allChannels {
-			if (channelToCoord.HasKey(channel)) {
-				coords := channelToCoord[channel]
-				x := coords[1]
-				y := coords[2]
-				PixelGetColor, checkColor, %x%, %y%, RGB
-				isChecked := isPixelBlue(checkColor)
-				
-				if (!isChecked) {
-					Click, %x%, %y%
-					Sleep 1000  ; Wait for UI to update after toggle
-					
-					; Verify: re-read the pixel to confirm it changed to blue
-					PixelGetColor, verifyColor, %x%, %y%, RGB
-					if (!isPixelBlue(verifyColor)) {
-						; Still not blue — log a warning but continue
-						; (might be a non-existent checkbox position)
-					}
-				}
-			}
+		if (want) {
+			allChannels.Push(channel)
 		}
+	}
+	; Safety: never produce nothing — fall back to everything detected
+	if (allChannels.MaxIndex() = "" or allChannels.MaxIndex() = 0) {
+		allChannels := detectedAll
+	}
+
+	; Set the Load-a-Group channel checkboxes to match the export selection.
+	CoordMode, Mouse, Client
+	CoordMode, Pixel, Client
+	; Stabilize window before pixel sampling (getImageChannels did heavy input)
+	WinActivate, Load a Group.
+	Sleep 500
+	Click, 300, 10  ; Click neutral area to clear any hover effects
+	Sleep 500
+
+	channelToCoord := {}
+	channelToCoord["dapi"] := [590, 91]   ; CH1
+	channelToCoord["gfp"]  := [904, 91]   ; CH2
+	channelToCoord["rfp"]  := [590, 511]  ; CH3
+	channelToCoord["bf"]   := [904, 513]  ; CH4 (if it exists)
+
+	; Toggle each present channel's box: checked iff it is in the export list.
+	For chName, coords in channelToCoord {
+		if (not isInList(chName, detectedChannels)) {
+			continue  ; channel not in this acquisition; leave its box alone
+		}
+		wantChecked := isInList(chName, allChannels)
+		x := coords[1]
+		y := coords[2]
+		PixelGetColor, checkColor, %x%, %y%, RGB
+		isChecked := isPixelBlue(checkColor)  ; Blue = CHECKED, Gray = UNCHECKED
+		if (wantChecked and !isChecked) {
+			Click, %x%, %y%
+			Sleep 1000
+		} else if (!wantChecked and isChecked) {
+			Click, %x%, %y%
+			Sleep 1000
+		}
+	}
+
+	; Overlay checkbox (Load a Group, 1150,47): match the overlay selection.
+	; getImageChannels may have checked it already; override to the user's choice.
+	wantOvly := isInList("ovly", allChannels)
+	PixelGetColor, ovlyColor, 1150, 47, RGB
+	ovlyChecked := isPixelBlue(ovlyColor)
+	if (wantOvly and !ovlyChecked) {
+		Click, 1150, 47
+		Sleep 2500
+	} else if (!wantOvly and ovlyChecked) {
+		Click, 1150, 47
+		Sleep 2500
 	}
 	
     ;Open the "Image stitch" window and launch the layout procedure:
@@ -261,7 +247,7 @@ runStitching(inputDirPath, currentName, outputDirPath, options, imageInfo) {
 		}
 		; MsgBox Processing channel %channel%, window %currentWin%
 		; Optional: auto-level this channel in the viewer before exporting
-		if (options["autoLevel"] = true) {
+		if (channelAutoLevel(channel, options)) {
 			autoLevelCorrection(currentWin)
 		}
 		if (isInList("BigTIFF", userFormats)) {

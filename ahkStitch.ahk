@@ -60,14 +60,25 @@ getDefaultOptions() {
 	options["scaleLength"] := 1000
 	options["shortName"]   := true
 	options["compress"]    := false
-	; Export mode: "channels" = all individual channels + overlay as separate
-	; files (matches the manual workflow); "overlay" = single composite per image.
-	options["exportMode"] := "channels"
-	options["saveIndividualChannels"] := true
+	; Which channels to export (internal key -> include?). Default: everything
+	; detected, like checking all the boxes when stitching manually.
+	exportChannels := {}
+	exportChannels["dapi"] := true
+	exportChannels["gfp"]  := true
+	exportChannels["rfp"]  := true
+	exportChannels["bf"]   := true
+	exportChannels["ovly"] := true
+	options["exportChannels"] := exportChannels
+	; Which channels get Auto Level Correction (Auto+Apply) before export. Off by default.
+	autoLevelChannels := {}
+	autoLevelChannels["dapi"] := false
+	autoLevelChannels["gfp"]  := false
+	autoLevelChannels["rfp"]  := false
+	autoLevelChannels["bf"]   := false
+	autoLevelChannels["ovly"] := false
+	options["autoLevelChannels"] := autoLevelChannels
 	; ImageJ/Fiji merge into a composite — off by default (separate files instead)
 	options["imageJMerge"] := false
-	; Click "Auto" Level Correction in the Wide Image Viewer before each export
-	options["autoLevel"] := false
 	; Organize output into per-mouse subfolders by name prefix (before first "_")
 	options["perMouseFolders"] := false
 	; Per-channel filename labels (internal channel key -> label in the filename)
@@ -108,25 +119,11 @@ stitchFolders(inputDir, outputDir, options) {
 	FileRemoveDir %tmpDir%, 1
 	FileCreateDir %tmpDir%
 	
-	;@ Overlay-only mode uses the fast batch path (Keyence opened once).
-	;@ Channels mode exports each channel separately via the recursive path.
-	if (options["exportMode"] = "overlay") {
-		options["saveIndividualChannels"] := false
-		; Collect all folders with GCI files first
-		folderList := []
-		collectFoldersWithGci(inputDir, "", outputDir, tmpDir, options, folderList)
-
-		; Process all folders in one batch
-		if (folderList.MaxIndex() > 0) {
-			runStitchingBatch(folderList, outputDir, options)
-		}
-	} else {
-		;@ Recursive approach: export all channels (+ overlay), optional ImageJ merge
-		options["saveIndividualChannels"] := true
-		level := 1   ; top-level
-		prefix := "" ; no prefix for top-level
-		stitchFoldersRecursive(inputDir, prefix, level, outputDir, tmpDir, options)
-	}
+	;@ Export the user-selected channels per folder via the recursive path.
+	;@ (Handles any channel combination, including overlay-only.)
+	level := 1   ; top-level
+	prefix := "" ; no prefix for top-level
+	stitchFoldersRecursive(inputDir, prefix, level, outputDir, tmpDir, options)
 	
 	compress := options["compress"]
 	if (compress = true or compress = "yes") {
@@ -163,9 +160,15 @@ stitchFoldersRecursive(inputDir, prefix, level, outputDir, tmpDir, options) {
 		; Per-mouse routing: this section's files land in baseOutput\<mouse> when enabled
 		sectionDir := outputDirForName(outputDir, exportName, options)
 
+		; Only stitch folders the user named in the Naming GUI. Leaving a folder
+		; blank skips it — lets you re-run a session where some folders are already
+		; stitched without re-doing them.
+		if (!hasAssignedName(currentWorkDir)) {
+			hasGci := false
+		}
 		; Resume support: skip this folder if its output already exists
 		; (manual or prior run). Checks the section's real output dir, not the tmp dir.
-		if (outputAlreadyStitched(sectionDir, exportName)) {
+		else if (outputAlreadyStitched(sectionDir, exportName)) {
 			hasGci := false
 		} else if (options["imageJMerge"] = true) {
 			; Export channels to a temp dir, then merge into a composite in Fiji
